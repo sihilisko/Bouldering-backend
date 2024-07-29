@@ -255,5 +255,49 @@
         "type": "top"
       }
     ]
+  },
+  {
+    "name": "juukelispuukelis",
+    "difficulty": "6a",
+    "comment": "",
+    "image": "Hänkki.jpg",
+    "holds": [
+      {
+        "x": 39.0255905511811,
+        "y": 7.210131093292606,
+        "color": "red",
+        "shape": "circle",
+        "fill": "filled",
+        "size": "medium",
+        "type": "normal"
+      },
+      {
+        "x": 62.64763779527559,
+        "y": 15.287853718552459,
+        "color": "red",
+        "shape": "circle",
+        "fill": "filled",
+        "size": "medium",
+        "type": "normal"
+      },
+      {
+        "x": 56.34842519685039,
+        "y": 24.58741674091044,
+        "color": "red",
+        "shape": "circle",
+        "fill": "filled",
+        "size": "medium",
+        "type": "normal"
+      },
+      {
+        "x": 46.80118110236221,
+        "y": 61.24262865385431,
+        "color": "red",
+        "shape": "circle",
+        "fill": "filled",
+        "size": "medium",
+        "type": "normal"
+      }
+    ]
   }
 ]

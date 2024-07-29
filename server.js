@@ -4,14 +4,14 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 5000; // Use environment variable for port if available
+const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'images')));
 
-// Serve the static files from the React app
-app.use(express.static(path.join(__dirname, '../bouldering-frontend/build')));
+// Serve frontend build files
+app.use(express.static(path.join(__dirname, '..', 'bouldering-frontend', 'build')));
 
 app.get('/routes-list', (req, res) => {
   fs.readFile(path.join(__dirname, 'routes/routes.json'), (err, data) => {
@@ -51,9 +51,9 @@ app.post('/save-route', (req, res) => {
   });
 });
 
-// All other GET requests not handled before will return the React app
+// Serve frontend index.html for all other routes
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../bouldering-frontend/build', 'index.html'));
+  res.sendFile(path.join(__dirname, '..', 'bouldering-frontend', 'build', 'index.html'));
 });
 
 app.listen(PORT, () => {
