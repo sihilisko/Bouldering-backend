@@ -1,78 +1,57 @@
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs');
+const { Pool } = require('pg');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+
+// Connect to PostgreSQL Database
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL, // Ensure this environment variable is set in Render
+    ssl: {
+        rejectUnauthorized: false
+    }
+});
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'images'))); // Serves images from the images directory
 
-// Serve static files from the 'images' directory
-app.use('/images', express.static(path.join(__dirname, 'images')));
-
-// Endpoint to list all routes
-app.get('/routes-list', (req, res) => {
-    const routesPath = path.join(__dirname, 'routes', 'routes.json');
-    console.log(`Attempting to read routes from: ${routesPath}`);
-    
-    fs.readFile(routesPath, (err, data) => {
-        if (err) {
-            console.error('Error reading routes data:', err);
-            return res.status(500).json({ error: 'Failed to read routes data' });
-        }
-        res.json(JSON.parse(data));
-    });
+// Get all routes from PostgreSQL
+app.get('/routes-list', async (req, res) => {
+    try {
+        const { rows } = await pool.query('SELECT * FROM routes');
+        res.json(rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to retrieve routes' });
+    }
 });
 
-// Endpoint to list all images
-app.get('/images-list', (req, res) => {
-    const imagesDir = path.join(__dirname, 'images');
-    console.log(`Attempting to read images from directory: ${imagesDir}`);
-    
-    fs.readdir(imagesDir, (err, files) => {
-        if (err) {
-            console.error('Error reading images directory:', err);
-            return res.status(500).json({ error: 'Failed to read images directory' });
-        }
-        res.json(files);
-    });
+// Save a new route to PostgreSQL
+app.post('/save-route', async (req, res) => {
+    const { name, difficulty, image, holds } = req.body;
+    try {
+        const { rows } = await pool.query('INSERT INTO routes (name, difficulty, image, holds) VALUES ($1, $2, $3, $4) RETURNING *', [name, difficulty, image, JSON.stringify(holds)]);
+        res.status(201).json(rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to save route' });
+    }
 });
 
-// Endpoint to save a new route
-app.post('/save-route', (req, res) => {
-    const routesPath = path.join(__dirname, 'routes', 'routes.json');
-    console.log(`Attempting to save a route to: ${routesPath}`);
-    
-    const newRoute = req.body;
-    fs.readFile(routesPath, (err, data) => {
-        if (err) {
-            console.error('Error reading routes data:', err);
-            return res.status(500).json({ error: 'Failed to read routes data' });
-        }
-
-        const routes = JSON.parse(data);
-        routes.push(newRoute);
-
-        fs.writeFile(routesPath, JSON.stringify(routes, null, 2), (err) => {
-            if (err) {
-                console.error('Error saving new route:', err);
-                return res.status(500).json({ error: 'Failed to save route' });
-            }
-            res.json({ message: 'Route saved successfully' });
-        });
-    });
+// Get list of images
+app.get('/images-list', async (req, res) => {
+    try {
+        const { rows } = await pool.query('SELECT filename FROM images'); // Assuming there is a table for images
+        res.json(rows.map(row => row.filename));
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to read images directory' });
+    }
 });
 
-// Serve frontend index.html for all other routes
-app.get('*', (req, res) => {
-    const indexPath = path.join(__dirname, '..', 'bouldering-frontend', 'build', 'index.html');
-    console.log(`Serving frontend index from: ${indexPath}`);
-    
-    res.sendFile(indexPath);
-});
-
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
