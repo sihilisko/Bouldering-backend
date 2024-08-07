@@ -1,57 +1,53 @@
 const express = require('express');
 const cors = require('cors');
-const { Pool } = require('pg');
+const fs = require('fs');
 const path = require('path');
 
 const app = express();
-
-// Connect to PostgreSQL Database
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL, // Ensure this environment variable is set in Render
-    ssl: {
-        rejectUnauthorized: false
-    }
-});
+const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'images'))); // Serves images from the images directory
+app.use(express.static(path.join(__dirname, 'images')));
 
-// Get all routes from PostgreSQL
-app.get('/routes-list', async (req, res) => {
-    try {
-        const { rows } = await pool.query('SELECT * FROM routes');
-        res.json(rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to retrieve routes' });
+app.get('/routes-list', (req, res) => {
+  fs.readFile(path.join(__dirname, 'routes/routes.json'), (err, data) => {
+    if (err) {
+      return res.status(500).json({ error: 'Failed to read routes data' });
     }
+    res.json(JSON.parse(data));
+  });
 });
 
-// Save a new route to PostgreSQL
-app.post('/save-route', async (req, res) => {
-    const { name, difficulty, image, holds } = req.body;
-    try {
-        const { rows } = await pool.query('INSERT INTO routes (name, difficulty, image, holds) VALUES ($1, $2, $3, $4) RETURNING *', [name, difficulty, image, JSON.stringify(holds)]);
-        res.status(201).json(rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to save route' });
+app.get('/images-list', (req, res) => {
+  fs.readdir(path.join(__dirname, 'images'), (err, files) => {
+    if (err) {
+      return res.status(500).json({ error: 'Failed to read images directory' });
     }
+    res.json(files);
+  });
 });
 
-// Get list of images
-app.get('/images-list', async (req, res) => {
-    try {
-        const { rows } = await pool.query('SELECT filename FROM images'); // Assuming there is a table for images
-        res.json(rows.map(row => row.filename));
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to read images directory' });
+app.post('/save-route', (req, res) => {
+  const newRoute = req.body;
+
+  fs.readFile(path.join(__dirname, 'routes/routes.json'), (err, data) => {
+    if (err) {
+      return res.status(500).json({ error: 'Failed to read routes data' });
     }
+
+    const routes = JSON.parse(data);
+    routes.push(newRoute);
+
+    fs.writeFile(path.join(__dirname, 'routes/routes.json'), JSON.stringify(routes, null, 2), (err) => {
+      if (err) {
+        return res.status(500).json({ error: 'Failed to save route' });
+      }
+      res.json({ message: 'Route saved successfully' });
+    });
+  });
 });
 
-const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
