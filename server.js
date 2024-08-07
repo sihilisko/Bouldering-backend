@@ -1,53 +1,58 @@
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs');
 const path = require('path');
+const mongoose = require('mongoose');
+const bodyParser = require('body-parser');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// MongoDB connection
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('MongoDB connected successfully'))
+  .catch(err => console.error('MongoDB connection error:', err));
+
+// Define a simple schema and model for Routes
+const routeSchema = new mongoose.Schema({
+  name: String,
+  difficulty: String,
+  image: String,
+  holds: Array
+});
+
+const Route = mongoose.model('Route', routeSchema);
+
+// Middleware
 app.use(cors());
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'images')));
+app.use(bodyParser.json());
+app.use('/images', express.static(path.join(__dirname, 'images')));
 
-app.get('/routes-list', (req, res) => {
-  fs.readFile(path.join(__dirname, 'routes/routes.json'), (err, data) => {
-    if (err) {
-      return res.status(500).json({ error: 'Failed to read routes data' });
-    }
-    res.json(JSON.parse(data));
-  });
+// Routes
+app.get('/routes-list', async (req, res) => {
+  try {
+    const routes = await Route.find();
+    res.json(routes);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch routes' });
+  }
 });
 
-app.get('/images-list', (req, res) => {
-  fs.readdir(path.join(__dirname, 'images'), (err, files) => {
-    if (err) {
-      return res.status(500).json({ error: 'Failed to read images directory' });
-    }
-    res.json(files);
-  });
+app.post('/save-route', async (req, res) => {
+  try {
+    const newRoute = new Route(req.body);
+    await newRoute.save();
+    res.status(201).json(newRoute);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save route' });
+  }
 });
 
-app.post('/save-route', (req, res) => {
-  const newRoute = req.body;
-
-  fs.readFile(path.join(__dirname, 'routes/routes.json'), (err, data) => {
-    if (err) {
-      return res.status(500).json({ error: 'Failed to read routes data' });
-    }
-
-    const routes = JSON.parse(data);
-    routes.push(newRoute);
-
-    fs.writeFile(path.join(__dirname, 'routes/routes.json'), JSON.stringify(routes, null, 2), (err) => {
-      if (err) {
-        return res.status(500).json({ error: 'Failed to save route' });
-      }
-      res.json({ message: 'Route saved successfully' });
-    });
-  });
+app.use(express.static(path.join(__dirname, 'build'))); // Serve static files
+app.get('*', (req, res) => {  // This ensures that the React SPA paths are handled correctly by serving index.html
+  res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
+// Start server
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server is running on http://localhost:${PORT}`);
 });
